@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/5.5.2/firebase.js"></script>
+		<script>
+			// Initialize Firebase
+			var config = {
+			    apiKey: "AIzaSyCm4c9uaU_BoqMeUW6NaO80_mzcpVx2n6w",
+			    authDomain: "hangman-2f29f.firebaseapp.com",
+			    databaseURL: "https://hangman-2f29f.firebaseio.com",
+			    projectId: "hangman-2f29f",
+			    storageBucket: "hangman-2f29f.appspot.com",
+			    messagingSenderId: "674125008337"
+			};
+			firebase.initializeApp(config);
+
+			var database = firebase.database();
+
+			const ref = firebase.storage().ref();
+
+			var numberOfFails = 0;
+			var numberOfSuccess = 0;
+			var wrongLetter = false;
+			var correctLetter = false;
+			var alreadySelectedLetters = [];
+
+			var catagory = "";
+			var score = 0;
+			var win = 0;
+			var loss = 0;
+			var word = "";
+
+			var userId = sessionStorage.getItem("userId");
+			var userName = sessionStorage.getItem("userName");
+
+			var range = 0;
+
+			var catagories = sessionStorage.getItem("catagories").split(',');
+
+			function setupGame() {
+
+				$("#hangman").attr("src","hangsman/hangman-0.png");
+
+				range = Math.floor(Math.random() * 30) + 1
+				word = catagories[range-1].toUpperCase();
+				numberOfSuccess = 0;
+				numberOfFails = 0;
+				alreadySelectedLetters = [];
+
+				if (range >= 1 && range <= 10) {
+
+					catagory = "Animals";
+				} else if (range >= 11 && range <= 20) {
+
+					catagory = "Countries";
+				} else {
+
+					catagory = "Sport";
+				}
+
+				$('#catagory').text('Category is ');
+				$('#catagory').append(catagory);
+
+				$('.answer').empty();
+
+				$('.letters button').css({'background': '#59B2E0', 'color': '#ffffff'});
+
+				for (var i = 0; i < word.length; i++) {
+
+					var letter = word.charAt(i);
+
+					var button = $('<button type="button" class="btn btn-default" alt="hidden letter"></button>');
+					button.text(letter);
+
+					$('.answer').append(button);
+					$('.answer button').css({'background': '#00acaa', 'border': '2px solid #007977', 'width': '50px', 'height': '50px',
+						 'font-size': '0', 'color': '#fff', 'margin': '1px', 'border-radius': '8px'});
+					$('.answer button').prop('disabled', true);
+				}
+			}
+
+			$(document).ready(function(){
+
+				$('html, body').css({'margin': '0', 'padding': '0', 'height': '100%'});
+				$('.navbar').css({'position': 'absolute', 'top': '0', 'height': '50px',
+					 'width': '100%', 'line-height': '50px', 'background-color': '#59B2E0'});
+				$('.base').css({'position': 'absolute', 'bottom': '0', 'height': '50px',
+					 'width': '100%', 'line-height': '50px', 'background-color': '#59B2E0', 'padding-botton': '50px'});
+				$('.heading').css('color', '#ffffff');
+				$('.game').css({'margin-top': '10%', 'min-height': '100%', 'position': 'relative', 'height': '100%'});
+				$('.btn-group button').css({'width': '50px', 'height': '50px', 'border': '2px solid #2680B0',
+					 'color': '#fff', 'margin': '1px', 'border-radius': '8px'});
+				$('.col-sm').css({'float': 'none', 'margin': '0 auto'});
+				$('.allLetters').css('margin-top', '5%');
+				$('#hangman').css('margin-bottom', '20px');
+				$('#bottom').css({'margin-top': '20px', 'margin-bottom': '5%'});
+				$('.logOut').css('background-color', '#59B2E0');
+				$('.tryAgain').css('background-color', '#59B2E0');
+
+				$('.heading').append(userName);
+
+				database.ref('Users/' + userId).on('value', function(snapshot) {
+
+					console.log(snapshot.val());
+
+					score = snapshot.val().score;
+					win = snapshot.val().win;
+					loss = snapshot.val().loss;
+
+					$('#score').text('Score: ');
+					$('#winLoss').text('Win / Loss: ');
+
+					$('#score').append(score);
+					$('#winLoss').append(win + " / " + loss);
+				});
+
+				setupGame();
+
+				$('.letters button').hover(function() {
+
+					$(this).stop().animate({'fontSize': '20px'});
+				}, function() {
+					$(this).stop().animate({'fontSize': '16px'});
+				});
+
+				$('#failMessage').append(word);
+
+				$('.tryAgain').click(function() {
+
+					setupGame();
+				});
+
+				$('.logOut').click(function() {
+
+					sessionStorage.setItem("userId", "");
+					window.location.href = "Login.html";
+				});
+
+
+				$('.letters button').click(function() {
+
+					$(this).css({'background': '#ffffff', 'color': '#59B2E0'});
+
+					var letter = $(this).text().toUpperCase();
+
+					if (!alreadySelectedLetters.includes(letter)) {
+
+						$('.answer button').each(function() {
+
+							alreadySelectedLetters.push(letter);
+
+							if ($(this).text().includes(letter)) {
+
+								numberOfSuccess += 1;
+
+								$(this).css('font-size', '16px');
+
+								if (!correctLetter) {
+
+									correctLetter = true;
+									numberOfFails -= 1;
+									$("#hangman").attr("src","hangsman/hangman-" + numberOfFails + ".png");
+								}
+							} else if (numberOfFails < 9 && !wrongLetter) {
+
+								wrongLetter = true
+								numberOfFails += 1;
+								$("#hangman").attr("src","hangsman/hangman-" + numberOfFails + ".png");
+							}
+						});
+
+						console.log("Word: " + word.length);
+						console.log("Success: " + numberOfSuccess);
+						console.log("Fail: " + numberOfFails);
+
+						if (numberOfSuccess == word.length) {
+
+							$('#modalSuccess').modal('toggle');
+
+							var scoreValue = parseInt(score, 10);
+							var winValue = parseInt(win, 10);
+
+							var newScoreValue = scoreValue + 10;
+							var newWinValue = winValue + 1;
+
+							database.ref('Users/' + userId).update({
+
+								score: newScoreValue,
+								win: newWinValue
+							});
+						} else if (numberOfFails == 9) {
+
+							$('#modalFail').modal('toggle');
+
+							var lossValue = parseInt(loss, 10);
+
+							var newLossValue = lossValue + 1;
+
+							database.ref('Users/' + userId).update({
+
+								loss: newLossValue
+							});
+						}
+					}
+
+					wrongLetter = false;
+					correctLetter = false;
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<nav class="navbar navbar-default navbar-fixed-top" data-spy="affix">
+			<div>
+	      		<h1 class="heading">Good luck </h1>
+	  		</div>
+	    </nav>
+		<div class="game">
+			<div class="text-center">
+				<div class = "col-sm">
+					<img id="hangman" alt="hangman image">
+					<p id="catagory">Category is </p>
+					<div class ="btn-group btn-group-md answer">
+					</div>
+				</div>
+				<div class="allLetters">
+					<div>
+						<div class="btn-group btn-group-md letters">
+					        <button type="button" class="btn btn-default">A</button>
+					        <button type="button" class="btn btn-default">B</button>
+					        <button type="button" class="btn btn-default">C</button>
+					        <button type="button" class="btn btn-default">D</button>
+					      	<button type="button" class="btn btn-default">E</button>
+					      	<button type="button" class="btn btn-default">F</button>
+					      	<button type="button" class="btn btn-default">G</button>
+					      	<button type="button" class="btn btn-default">H</button>
+					  	</div>
+					  </div>
+					  <div>
+					  	<div class="btn-group btn-group-md letters">
+					  		<button type="button" class="btn btn-default">I</button>
+					      	<button type="button" class="btn btn-default">J</button>
+					     	<button type="button" class="btn btn-default">K</button>
+					      	<button type="button" class="btn btn-default">L</button>
+					      	<button type="button" class="btn btn-default">M</button>
+					      	<button type="button" class="btn btn-default">N</button>
+					      	<button type="button" class="btn btn-default">O</button>
+					      	<button type="button" class="btn btn-default">P</button>
+					      	<button type="button" class="btn btn-default">Q</button>
+					      	<button type="button" class="btn btn-default">R</button>
+					    </div>
+					</div>
+					<div>
+					    <div class="btn-group btn-group-md letters">
+					      	<button type="button" class="btn btn-default">S</button>
+					      	<button type="button" class="btn btn-default">T</button>
+					      	<button type="button" class="btn btn-default">U</button>
+					      	<button type="button" class="btn btn-default">V</button>
+					      	<button type="button" class="btn btn-default">W</button>
+					      	<button type="button" class="btn btn-default">X</button>
+					      	<button type="button" class="btn btn-default">Y</button>
+					      	<button type="button" class="btn btn-default">Z</button>
+					    </div>
+					</div>
+				</div>
+			    <div id="bottom" class="row">
+			    	<div class="col-md-4">
+						<p id="score">Score: </p>
+					</div>
+					<div class="col-md-4">
+						<p id="winLoss">Win / Loss: </p>
+					</div>
+					<div class="col-md-4">
+						<button type="button" class="btn btn-default logOut" data-dismiss="modal">Log Out</button>
+					</div>
+				</div>
+			</div>
+			<footer class="base">
+		    </footer>
+		</div>
+		<div class="modal fade" id="modalSuccess" role="dialog">
+		    <div class="modal-dialog">
+			    <div class="modal-content">
+			        <div class="modal-header">
+			          	<h4 class="modal-title">Congratualtions you won!!!</h4>
+			        </div>
+			        <div class="modal-body">
+			          	<p>You recieved 10 points</p>
+			        </div>
+			        <div class="modal-footer">
+			          	<button type="button" class="btn btn-default tryAgain" data-dismiss="modal">Try Again</button>
+			          	<button type="button" class="btn btn-default logOut" data-dismiss="modal">Log Out</button>
+			        </div>
+			    </div>
+		    </div>
+		</div>
+		<div class="modal fade" id="modalFail" role="dialog">
+		    <div class="modal-dialog">
+			    <div class="modal-content">
+			        <div class="modal-header">
+			          	<h4 class="modal-title">Sorry you ran out of attempts.</h4>
+			        </div>
+			        <div class="modal-body">
+			          	<p id="failMessage">The word was </p>
+			        </div>
+			        <div class="modal-footer">
+			          	<button type="button" class="btn btn-default tryAgain" data-dismiss="modal">Try Again</button>
+			          	<button type="button" class="btn btn-default logOut" data-dismiss="modal">Log Out</button>
+			        </div>
+			    </div>
+		    </div>
+		</div>
+	</body>
+</html>
